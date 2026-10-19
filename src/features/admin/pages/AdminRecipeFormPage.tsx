@@ -3,11 +3,9 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from "react-hook-form";
 import * as yup from "yup";
 import { useLoaderData, useNavigate } from "react-router";
-import {
-  createRecipe,
-  updateRecipe,
-} from "@/features/recipes/services/recipeService";
+import { useRecipeStore } from "@/app/store";
 import type { Recipe } from "@/features/recipes/types";
+import { useShallow } from "zustand/shallow";
 
 // Defined once, outside the component, so it is not rebuilt on every render
 const recipeSchema = yup.object({
@@ -24,6 +22,12 @@ type RecipeFormValues = yup.InferType<typeof recipeSchema>;
 function AdminRecipeFormPage() {
   // Provided by the route loader in edit mode, undefined in add mode
   const recipe: Recipe | undefined = useLoaderData();
+  const { updateRecipe, createRecipe } = useRecipeStore(
+    useShallow(({ updateRecipe, createRecipe }) => ({
+      updateRecipe,
+      createRecipe,
+    })),
+  );
   const navigate = useNavigate();
 
   const defaultValues: RecipeFormValues = {

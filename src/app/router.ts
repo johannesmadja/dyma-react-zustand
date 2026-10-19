@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import { createBrowserRouter, redirect } from "react-router";
 import App from "./App";
 import Loading from "@/components/ui/Loading";
+import { useRecipeStore } from "./store";
 import { getRecipe } from "@/features/recipes/services/recipeService";
 
 // Lazy-load a page: the router downloads its code only when the route is visited
@@ -15,6 +16,12 @@ export const ROUTER = createBrowserRouter([
     path: "/",
     Component: App,
     HydrateFallback: Loading,
+    loader: async () => {
+      // Guard against revalidations: fetchRecipe appends, so page 1 would be duplicated
+      const { recipes, fetchRecipe } = useRecipeStore.getState();
+      if (!recipes.length) await fetchRecipe();
+      return null;
+    },
     children: [
       {
         index: true,
@@ -44,8 +51,14 @@ export const ROUTER = createBrowserRouter([
               },
               {
                 path: "edit/:recipeId",
+                // The store only holds the loaded pages: fall back to the API for
+                // a recipe not loaded yet (e.g. direct access to the edit URL).
                 // recipeId is always defined here: it is part of the route path
-                loader: ({ params }) => getRecipe(params.recipeId!),
+                loader: ({ params }) =>
+                  useRecipeStore
+                    .getState()
+                    .recipes.find((r) => r._id === params.recipeId) ??
+                  getRecipe(params.recipeId!),
                 lazy: lazyPage(
                   () => import("@/features/admin/pages/AdminRecipeFormPage"),
                 ),

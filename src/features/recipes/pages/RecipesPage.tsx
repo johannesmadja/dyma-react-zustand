@@ -1,18 +1,60 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import styles from "./RecipesPage.module.scss";
 import Recipe from "../components/Recipe";
-import { useRecipes } from "../hooks/useRecipes";
 import type { Recipe as RecipeType } from "../types";
 import Loading from "@/components/ui/Loading";
 import SearchBar from "@/components/ui/SearchBar";
-
-const PAGE_SIZE = 18;
+import { useRecipeStore } from "@/app/store";
+import { useShallow } from "zustand/shallow";
+import Wishlist from "@/components/layout/WishList";
 
 function RecipesPage() {
   const [filter, setFilter] = useState("");
-  const [page, setPage] = useState(1);
-  const { recipes, isLoading, error, hasMore, updateRecipe, deleteRecipe } =
-    useRecipes(page, PAGE_SIZE);
+  // const { recipes, isLoading, error, hasMore, updateRecipe, deleteRecipe } =
+  //   useRecipes(page, PAGE_SIZE);
+
+  const {
+    recipes,
+    loading,
+    hasMore,
+    updateRecipe,
+    deleteRecipe,
+    incPage,
+    showWishList,
+  } = useRecipeStore(
+    useShallow(
+      ({
+        recipes,
+        loading,
+        hasMore,
+        showWishList,
+        updateRecipe,
+        deleteRecipe,
+        incPage,
+      }) => ({
+        recipes,
+        loading,
+        hasMore,
+        showWishList,
+        updateRecipe,
+        deleteRecipe,
+        incPage,
+      }),
+    ),
+  );
+
+  const wishedRecipes = useMemo(
+    () => recipes.filter(({ liked }) => liked),
+    [recipes],
+  );
+
+  async function handleLoadMore() {
+    try {
+      await incPage();
+    } catch (error) {
+      console.error(error);
+    }
+  }
 
   async function handleToggleLike(recipe: RecipeType) {
     try {
@@ -31,48 +73,50 @@ function RecipesPage() {
   }
 
   return (
-    <div className="flex-fill d-flex flex-column  container p-20">
-      <h1 className="my-30">Découvrez nos nouvelles recettes</h1>
+    <>
+      <div className="flex-fill d-flex flex-column  container p-20">
+        <h1 className="my-30">Découvrez nos nouvelles recettes</h1>
 
-      <div
-        className={`p-20 flex-fill d-flex flex-column card ${styles.contentCard} `}
-      >
-        <SearchBar onSearch={(value) => setFilter(value.trim().toLowerCase())} />
+        <div
+          className={`p-20 flex-fill d-flex flex-column card ${styles.contentCard} `}
+        >
+          <SearchBar
+            onSearch={(value) => setFilter(value.trim().toLowerCase())}
+          />
 
-        {error && (
-          <p className="form-error">Impossible de charger les recettes.</p>
-        )}
+          {loading && !recipes.length ? (
+            <Loading />
+          ) : (
+            <div className={`${styles.grid}`}>
+              {recipes
+                .filter((r) => r.title.toLowerCase().startsWith(filter))
+                .map((r) => (
+                  <Recipe
+                    key={r._id}
+                    recipe={r}
+                    onToggleLike={() => handleToggleLike(r)}
+                    onDelete={() => handleDelete(r._id)}
+                  />
+                ))}
+            </div>
+          )}
 
-        {isLoading && !recipes.length ? (
-          <Loading />
-        ) : (
-          <div className={`${styles.grid}`}>
-            {recipes
-              .filter((r) => r.title.toLowerCase().startsWith(filter))
-              .map((r) => (
-                <Recipe
-                  key={r._id}
-                  recipe={r}
-                  onToggleLike={() => handleToggleLike(r)}
-                  onDelete={() => handleDelete(r._id)}
-                />
-              ))}
-          </div>
-        )}
-
-        {hasMore && !error && (
-          <div className="flex-row-center p-20">
-            <button
-              onClick={() => setPage(page + 1)}
-              disabled={isLoading}
-              className="btn btn-primary"
-            >
-              Charger plus de recette
-            </button>
-          </div>
-        )}
+          {hasMore && (
+            <div className="flex-row-center p-20">
+              <button
+                onClick={handleLoadMore}
+                disabled={loading}
+                className="btn btn-primary"
+              >
+                Charger plus de recette
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      {showWishList && <Wishlist recipes={wishedRecipes} />}
+    </>
   );
 }
 

@@ -29,7 +29,7 @@ export async function getRecipe(id: string): Promise<Recipe> {
 // Create new recipe(s)
 export async function createRecipe(
   recipe: RecipeInput | RecipeInput[],
-): Promise<Recipe | Recipe[]> {
+): Promise<Recipe> {
   return apiFetch("/recipes", {
     method: "POST",
     body: JSON.stringify(recipe),
